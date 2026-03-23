@@ -1,6 +1,6 @@
-
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -17,28 +17,28 @@
             font-family: 'Courier New', monospace;
             color: #00ff00;
         }
-        
+
         #gameContainer {
             text-align: center;
         }
-        
+
         canvas {
             border: 2px solid #00ff00;
             background: #000;
         }
-        
+
         #score {
             font-size: 24px;
             margin-bottom: 10px;
         }
-        
+
         #gameOver {
             font-size: 32px;
             color: #ff0000;
             margin-top: 20px;
             display: none;
         }
-        
+
         #instructions {
             margin-top: 20px;
             font-size: 14px;
@@ -46,18 +46,20 @@
         }
     </style>
 </head>
+
 <body>
     <div id="gameContainer">
         <div id="score">Score: 0 | Stage: 1 | Lives: 3</div>
         <canvas id="gameCanvas" width="800" height="600"></canvas>
-        <div id="gameOver">GAME OVER<br>Press R to Restart</div>
+        <div id="gameOver">GAME OVER<br><span style="font-size: 20px; color: #ffff00;">[ ENTER ] to Restart</span></div>
         <div id="gameComplete" style="font-size: 32px; color: #00ff00; margin-top: 20px; display: none;">
-            CONGRATULATIONS!<br>YOU SAVED THE GALAXY!<br>Press R to Play Again
+            CONGRATULATIONS!<br>YOU SAVED THE GALAXY!<br><span style="font-size: 20px; color: #ffff00;">[ ENTER ] to Play Again</span>
         </div>
         <div id="newRecord" style="font-size: 24px; color: #ffff00; margin-top: 20px; display: none;">
             NEW HIGH SCORE!<br>
             Enter your name (max 10 chars):<br>
-            <input type="text" id="playerName" maxlength="10" style="font-size: 20px; text-align: center; margin: 10px;">
+            <input type="text" id="playerName" maxlength="10"
+                style="font-size: 20px; text-align: center; margin: 10px;">
             <br><button id="submitScore" style="font-size: 16px; padding: 5px 15px;">Submit</button>
         </div>
         <div id="rankings" style="font-size: 18px; color: #00ffff; margin-top: 20px;">
@@ -65,12 +67,27 @@
             <div id="rankingList"></div>
         </div>
         <div id="instructions" style="margin-top: 20px; font-size: 14px; color: #888;">
-            Use ARROW KEYS to move • SPACEBAR to shoot • R to restart
+            Use ARROW KEYS to move • SPACEBAR to shoot • ENTER to restart
         </div>
         <div id="startScreen" style="font-size: 24px; color: #00ff00; margin-top: 20px;">
             SPACE INVADERS<br><br>
-            Press R to Start Game
+            <span style="
+                display: inline-block;
+                font-size: 28px;
+                color: #000;
+                background: #00ff00;
+                padding: 10px 28px;
+                border-radius: 6px;
+                letter-spacing: 2px;
+                animation: blink 1s step-start infinite;
+            ">▶ Press ENTER to Start</span>
         </div>
+        <style>
+            @keyframes blink {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.2; }
+            }
+        </style>
     </div>
 
     <script>
@@ -123,16 +140,32 @@
         let barriers = [];
         let ufo = null;
         let ufoBombs = [];
+        let fireballs = []; // For Stage 4 boss fireballs
 
         // Bullet class
         class Bullet {
-            constructor(x, y, speed, color = '#ffff00') {
+            constructor(x, y, speed, color = '#ffff00', size = 'normal') {
                 this.x = x;
                 this.y = y;
-                this.width = 4;
-                this.height = 10;
                 this.speed = speed;
                 this.color = color;
+                this.size = size;
+
+                // Size-based properties
+                switch (size) {
+                    case 'normal':
+                        this.width = 4;
+                        this.height = 10;
+                        break;
+                    case 'large':
+                        this.width = 8;
+                        this.height = 16;
+                        break;
+                    case 'huge':
+                        this.width = 12;
+                        this.height = 20;
+                        break;
+                }
             }
 
             update() {
@@ -142,6 +175,17 @@
             draw() {
                 ctx.fillStyle = this.color;
                 ctx.fillRect(this.x, this.y, this.width, this.height);
+
+                // Add glow effect for larger bullets
+                if (this.size !== 'normal') {
+                    ctx.fillStyle = this.size === 'large' ? '#ffaa00' : '#ff6600';
+                    ctx.fillRect(this.x + 1, this.y + 1, this.width - 2, this.height - 2);
+
+                    if (this.size === 'huge') {
+                        ctx.fillStyle = '#ff0000';
+                        ctx.fillRect(this.x + 2, this.y + 2, this.width - 4, this.height - 4);
+                    }
+                }
             }
 
             isOffScreen() {
@@ -159,44 +203,52 @@
                 this.shootTimer = Math.random() * 200 + 100;
                 this.animationFrame = 0; // For leg animation
                 this.animationTimer = 0;
-                
+
                 // Stage-specific properties
-                switch(stage) {
+                switch (stage) {
                     case 1:
                         this.width = 40;
                         this.height = 30;
-                        this.speed = 1;
+                        this.speed = 0.5; // Slowest
                         this.color = '#ff0000';
                         this.health = 1;
                         this.shootRate = 0.001;
                         this.legCount = 2;
+                        this.bulletSize = 'normal';
+                        this.bulletCount = 1;
                         break;
                     case 2:
                         this.width = 50;
                         this.height = 40;
-                        this.speed = 1.5;
+                        this.speed = 1.0; // Medium slow
                         this.color = '#ff8800';
                         this.health = 2;
                         this.shootRate = 0.002;
                         this.legCount = 3;
+                        this.bulletSize = 'normal';
+                        this.bulletCount = 1;
                         break;
                     case 3:
                         this.width = 80;
                         this.height = 60;
-                        this.speed = 0.8;
+                        this.speed = 1.5; // Medium fast
                         this.color = '#8800ff';
                         this.health = 5;
-                        this.shootRate = 0.005;
+                        this.shootRate = 0.012; // Even more frequent
                         this.legCount = 4;
+                        this.bulletSize = 'large';
+                        this.bulletCount = 7; // More bullets
                         break;
                     case 4:
                         this.width = 120;
                         this.height = 100;
-                        this.speed = 0.5;
+                        this.speed = 2.0; // Fastest
                         this.color = '#ff0088';
                         this.health = 10;
-                        this.shootRate = 0.008;
+                        this.shootRate = 0.025; // Very frequent fireball shooting
                         this.legCount = 4;
+                        this.bulletSize = 'huge';
+                        this.bulletCount = 0; // No regular bullets
                         break;
                 }
                 this.maxHealth = this.health;
@@ -204,36 +256,82 @@
 
             update() {
                 this.x += this.speed * this.direction;
-                
+
                 // Update leg animation
                 this.animationTimer++;
                 if (this.animationTimer >= 15) { // Change animation every 15 frames
                     this.animationFrame = (this.animationFrame + 1) % 2;
                     this.animationTimer = 0;
-                    
+
                     // Play move sound occasionally
                     if (Math.random() < 0.1) {
                         playInvaderMoveSound(this.stage);
                     }
                 }
-                
+
                 // Shooting logic - more frequent for higher stages
                 this.shootTimer--;
                 if (this.shootTimer <= 0 && Math.random() < this.shootRate) {
-                    // Stage 3 and 4 shoot multiple bullets
-                    if (this.stage >= 3) {
-                        for (let i = 0; i < 3; i++) {
+                    // Different shooting patterns based on stage
+                    if (this.stage <= 2) {
+                        // Stage 1 & 2: Single bullet
+                        invaderBullets.push(new Bullet(
+                            this.x + this.width / 2,
+                            this.y + this.height,
+                            3,
+                            '#ff0000',
+                            this.bulletSize
+                        ));
+                    } else if (this.stage === 3) {
+                        // Stage 3: Enhanced spray pattern
+                        const centerX = this.x + this.width / 2;
+                        const spreadAngle = 40; // Wider spread
+                        const bulletSpacing = spreadAngle / (this.bulletCount - 1);
+
+                        for (let i = 0; i < this.bulletCount; i++) {
+                            const angle = -spreadAngle / 2 + (i * bulletSpacing);
+                            const radians = angle * Math.PI / 180;
+                            const offsetX = Math.sin(radians) * 25;
+                            const speedX = Math.sin(radians) * 2.5;
+
                             invaderBullets.push(new Bullet(
-                                this.x + this.width/2 + (i-1) * 20, 
-                                this.y + this.height, 
-                                3, 
-                                '#ff0000'
+                                centerX + offsetX,
+                                this.y + this.height,
+                                3.5 + Math.abs(speedX),
+                                '#aa00ff',
+                                this.bulletSize
                             ));
                         }
-                    } else {
-                        invaderBullets.push(new Bullet(this.x + this.width/2, this.y + this.height, 3, '#ff0000'));
+                    } else if (this.stage === 4) {
+                        // Stage 4: Massive fireball barrage
+                        const fireballCount = 8; // More fireballs
+                        const centerX = this.x + this.width / 2;
+
+                        // First wave: Wide spread
+                        for (let i = 0; i < fireballCount; i++) {
+                            const angle = -70 + (i * 20); // -70 to +70 degrees, wider spread
+                            const radians = angle * Math.PI / 180;
+                            const offsetX = Math.sin(radians) * 40;
+
+                            fireballs.push(new Fireball(
+                                centerX + offsetX,
+                                this.y + this.height
+                            ));
+                        }
+
+                        // Second wave: Direct shots (delayed slightly)
+                        setTimeout(() => {
+                            if (this.health > 0) { // Only if monster is still alive
+                                for (let i = 0; i < 5; i++) {
+                                    fireballs.push(new Fireball(
+                                        centerX + (i - 2) * 25,
+                                        this.y + this.height
+                                    ));
+                                }
+                            }
+                        }, 200);
                     }
-                    this.shootTimer = Math.random() * 300 + 200;
+                    this.shootTimer = Math.random() * 100 + 30; // Much faster reload for Stage 4
                 }
             }
 
@@ -241,7 +339,7 @@
                 // Health-based color intensity
                 const healthRatio = this.health / this.maxHealth;
                 let drawColor = this.color;
-                
+
                 if (healthRatio < 1) {
                     // Darken color as health decreases
                     const r = parseInt(this.color.substr(1, 2), 16);
@@ -249,13 +347,13 @@
                     const b = parseInt(this.color.substr(5, 2), 16);
                     drawColor = `rgb(${Math.floor(r * healthRatio)}, ${Math.floor(g * healthRatio)}, ${Math.floor(b * healthRatio)})`;
                 }
-                
+
                 // Draw main body
                 ctx.fillStyle = drawColor;
                 ctx.fillRect(this.x, this.y, this.width, this.height);
-                
+
                 // Stage-specific appearance
-                switch(this.stage) {
+                switch (this.stage) {
                     case 1:
                         // Simple invader
                         ctx.fillStyle = '#000';
@@ -295,20 +393,20 @@
                         ctx.fillRect(this.x + 50, this.y + 70, 20, 10);
                         break;
                 }
-                
+
                 // Draw animated legs
                 this.drawLegs();
-                
+
                 // Health bar for stages 3 and 4
                 if (this.stage >= 3) {
                     const barWidth = this.width;
                     const barHeight = 4;
                     const barY = this.y - 8;
-                    
+
                     // Background
                     ctx.fillStyle = '#333';
                     ctx.fillRect(this.x, barY, barWidth, barHeight);
-                    
+
                     // Health
                     ctx.fillStyle = healthRatio > 0.5 ? '#00ff00' : healthRatio > 0.25 ? '#ffff00' : '#ff0000';
                     ctx.fillRect(this.x, barY, barWidth * healthRatio, barHeight);
@@ -320,11 +418,11 @@
                 const legWidth = Math.max(3, Math.floor(this.width / 15));
                 const legHeight = Math.max(8, Math.floor(this.height / 4));
                 const legSpacing = this.width / (this.legCount + 1);
-                
+
                 for (let i = 0; i < this.legCount; i++) {
                     const legX = this.x + legSpacing * (i + 1) - legWidth / 2;
                     let legY = this.y + this.height;
-                    
+
                     // Animate legs - alternate between two positions
                     if (this.animationFrame === 0) {
                         // Normal position
@@ -349,15 +447,37 @@
 
         // Barrier class
         class Barrier {
-            constructor(x, y) {
+            constructor(x, y, stage = 1) {
                 this.x = x;
                 this.y = y;
                 this.width = 80;
                 this.height = 60;
                 this.blockSize = 4;
-                this.color = '#00ff00';
-                
-                // Create barrier structure as a 2D array (20x15 blocks)
+                this.stage = stage;
+
+                // Stage-specific properties
+                switch (stage) {
+                    case 1:
+                        this.color = '#00ff00'; // Green - basic
+                        this.pattern = 'basic';
+                        break;
+                    case 2:
+                        this.color = '#00ffff'; // Cyan - reinforced
+                        this.pattern = 'reinforced';
+                        break;
+                    case 3:
+                        this.color = '#ffff00'; // Yellow - advanced
+                        this.pattern = 'advanced';
+                        break;
+                    case 4:
+                        this.color = '#ff00ff'; // Magenta - ultimate
+                        this.pattern = 'ultimate';
+                        this.width = 120; // Bigger barrier for final stage
+                        this.height = 80;
+                        break;
+                }
+
+                // Create barrier structure as a 2D array
                 this.blocks = [];
                 this.initializeBlocks();
             }
@@ -365,25 +485,94 @@
             initializeBlocks() {
                 const rows = this.height / this.blockSize;
                 const cols = this.width / this.blockSize;
-                
-                // Create barrier shape pattern
-                const pattern = [
-                    "11111111111111111111",
-                    "11111111111111111111",
-                    "11111111111111111111",
-                    "11111111111111111111",
-                    "11111111111111111111",
-                    "11111111111111111111",
-                    "11111111111111111111",
-                    "11111111111111111111",
-                    "11111111111111111111",
-                    "11111000000000001111",
-                    "11110000000000011111",
-                    "11100000000000111111",
-                    "11000000000001111111",
-                    "10000000000011111111",
-                    "00000000000111111111"
-                ];
+
+                // Different patterns for different stages
+                let pattern;
+
+                switch (this.pattern) {
+                    case 'basic':
+                        pattern = [
+                            "11111111111111111111",
+                            "11111111111111111111",
+                            "11111111111111111111",
+                            "11111111111111111111",
+                            "11111111111111111111",
+                            "11111111111111111111",
+                            "11111111111111111111",
+                            "11111111111111111111",
+                            "11111111111111111111",
+                            "11111000000000001111",
+                            "11110000000000011111",
+                            "11100000000000111111",
+                            "11000000000001111111",
+                            "10000000000011111111",
+                            "00000000000111111111"
+                        ];
+                        break;
+                    case 'reinforced':
+                        pattern = [
+                            "11111111111111111111",
+                            "11111111111111111111",
+                            "11111111111111111111",
+                            "11111111111111111111",
+                            "11111111111111111111",
+                            "11111111111111111111",
+                            "11111111111111111111",
+                            "11111111111111111111",
+                            "11111111111111111111",
+                            "11111100000000111111",
+                            "11111000000000011111",
+                            "11110000000000001111",
+                            "11100000000000000111",
+                            "11000000000000000011",
+                            "10000000000000000001"
+                        ];
+                        break;
+                    case 'advanced':
+                        pattern = [
+                            "11111111111111111111",
+                            "11111111111111111111",
+                            "11111111111111111111",
+                            "11111111111111111111",
+                            "11111111111111111111",
+                            "11111111111111111111",
+                            "11111111111111111111",
+                            "11111111111111111111",
+                            "11111111111111111111",
+                            "11111110000001111111",
+                            "11111100000000111111",
+                            "11111000000000011111",
+                            "11110000000000001111",
+                            "11100000000000000111",
+                            "11000000000000000011"
+                        ];
+                        break;
+                    case 'ultimate':
+                        // Bigger pattern for stage 4
+                        pattern = [
+                            "111111111111111111111111111111",
+                            "111111111111111111111111111111",
+                            "111111111111111111111111111111",
+                            "111111111111111111111111111111",
+                            "111111111111111111111111111111",
+                            "111111111111111111111111111111",
+                            "111111111111111111111111111111",
+                            "111111111111111111111111111111",
+                            "111111111111111111111111111111",
+                            "111111111111111111111111111111",
+                            "111111111111111111111111111111",
+                            "111111111111111111111111111111",
+                            "111111111000000000000111111111",
+                            "111111110000000000000011111111",
+                            "111111100000000000000001111111",
+                            "111111000000000000000000111111",
+                            "111110000000000000000000011111",
+                            "111100000000000000000000001111",
+                            "111000000000000000000000000111",
+                            "110000000000000000000000000011"
+                        ];
+                        break;
+                }
 
                 for (let row = 0; row < rows; row++) {
                     this.blocks[row] = [];
@@ -408,6 +597,21 @@
                                 this.blockSize,
                                 this.blockSize
                             );
+
+                            // Add pattern details based on stage
+                            if (this.stage >= 2) {
+                                // Add reinforcement lines
+                                ctx.fillStyle = this.stage === 2 ? '#ffffff' : this.stage === 3 ? '#ffaa00' : '#ff66ff';
+                                if ((row + col) % 4 === 0) {
+                                    ctx.fillRect(
+                                        this.x + col * this.blockSize + 1,
+                                        this.y + row * this.blockSize + 1,
+                                        this.blockSize - 2,
+                                        1
+                                    );
+                                }
+                                ctx.fillStyle = this.color;
+                            }
                         }
                     }
                 }
@@ -439,10 +643,10 @@
             }
 
             destroyBlocks(centerCol, centerRow, radius) {
-                for (let row = Math.max(0, centerRow - radius); 
-                     row <= Math.min(this.blocks.length - 1, centerRow + radius); row++) {
-                    for (let col = Math.max(0, centerCol - radius); 
-                         col <= Math.min(this.blocks[0].length - 1, centerCol + radius); col++) {
+                for (let row = Math.max(0, centerRow - radius);
+                    row <= Math.min(this.blocks.length - 1, centerRow + radius); row++) {
+                    for (let col = Math.max(0, centerCol - radius);
+                        col <= Math.min(this.blocks[0].length - 1, centerCol + radius); col++) {
                         // Create circular destruction pattern
                         const distance = Math.sqrt((col - centerCol) ** 2 + (row - centerRow) ** 2);
                         if (distance <= radius) {
@@ -472,7 +676,7 @@
                 // Draw large bomb
                 ctx.fillStyle = this.color;
                 ctx.fillRect(this.x, this.y, this.width, this.height);
-                
+
                 // Add some detail to make it look like a bomb
                 ctx.fillStyle = '#ffaa00';
                 ctx.fillRect(this.x + 2, this.y + 2, this.width - 4, this.height - 4);
@@ -490,10 +694,29 @@
             constructor() {
                 this.width = 60;
                 this.height = 25;
-                this.speed = 2;
                 this.color = '#ff00ff';
                 this.bombTimer = Math.random() * 200 + 100;
-                
+
+                // Stage-based properties
+                switch (currentStage) {
+                    case 1:
+                        this.speed = 2;
+                        this.bombRate = 0.02;
+                        break;
+                    case 2:
+                        this.speed = 3;
+                        this.bombRate = 0.04;
+                        break;
+                    case 3:
+                        this.speed = 4;
+                        this.bombRate = 0.06;
+                        break;
+                    case 4:
+                        this.speed = 5;
+                        this.bombRate = 0.08;
+                        break;
+                }
+
                 // Randomly choose direction and starting position
                 if (Math.random() < 0.5) {
                     // Move left to right
@@ -509,12 +732,19 @@
 
             update() {
                 this.x += this.speed * this.direction;
-                
-                // Drop bombs occasionally
+
+                // Drop bombs more frequently based on stage
                 this.bombTimer--;
-                if (this.bombTimer <= 0 && Math.random() < 0.02) {
-                    ufoBombs.push(new UFOBomb(this.x + this.width/2 - 6, this.y + this.height));
-                    this.bombTimer = Math.random() * 150 + 100;
+                if (this.bombTimer <= 0 && Math.random() < this.bombRate) {
+                    // Drop multiple bombs for higher stages
+                    const bombCount = currentStage >= 3 ? 3 : currentStage >= 2 ? 2 : 1;
+                    for (let i = 0; i < bombCount; i++) {
+                        ufoBombs.push(new UFOBomb(
+                            this.x + this.width / 2 - 6 + (i - Math.floor(bombCount / 2)) * 15,
+                            this.y + this.height
+                        ));
+                    }
+                    this.bombTimer = Math.random() * 100 + 50; // Faster reload
                 }
             }
 
@@ -522,15 +752,15 @@
                 // Draw UFO body
                 ctx.fillStyle = this.color;
                 ctx.fillRect(this.x + 10, this.y + 10, this.width - 20, this.height - 10);
-                
+
                 // Draw UFO dome
                 ctx.fillStyle = '#ff66ff';
                 ctx.fillRect(this.x + 15, this.y, this.width - 30, 15);
-                
+
                 // Draw UFO base/rim
                 ctx.fillStyle = '#cc00cc';
                 ctx.fillRect(this.x, this.y + 15, this.width, 10);
-                
+
                 // Add some lights
                 ctx.fillStyle = '#ffff00';
                 for (let i = 0; i < 4; i++) {
@@ -539,16 +769,64 @@
             }
 
             isOffScreen() {
-                return (this.direction === 1 && this.x > canvas.width) || 
-                       (this.direction === -1 && this.x < -this.width);
+                return (this.direction === 1 && this.x > canvas.width) ||
+                    (this.direction === -1 && this.x < -this.width);
+            }
+        }
+
+        // Fireball class for Stage 4
+        class Fireball {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.width = 20; // Bigger fireballs
+                this.height = 20;
+                this.speed = 5; // Very fast
+                this.color = '#ff4400';
+                this.animationFrame = 0;
+                this.animationTimer = 0;
+            }
+
+            update() {
+                this.y += this.speed;
+
+                // Animate fireball
+                this.animationTimer++;
+                if (this.animationTimer >= 3) { // Faster animation
+                    this.animationFrame = (this.animationFrame + 1) % 4;
+                    this.animationTimer = 0;
+                }
+            }
+
+            draw() {
+                // Draw animated fireball with flickering effect
+                const colors = ['#ff2200', '#ff4400', '#ff6600', '#ff8800'];
+                ctx.fillStyle = colors[this.animationFrame];
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+
+                // Add inner fire core
+                ctx.fillStyle = '#ffaa00';
+                ctx.fillRect(this.x + 3, this.y + 3, this.width - 6, this.height - 6);
+
+                // Add hot center
+                ctx.fillStyle = '#ffff00';
+                ctx.fillRect(this.x + 6, this.y + 6, this.width - 12, this.height - 12);
+
+                // Add white hot core
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(this.x + 8, this.y + 8, this.width - 16, this.height - 16);
+            }
+
+            isOffScreen() {
+                return this.y > canvas.height;
             }
         }
 
         // Initialize invaders based on stage (for preview or actual game)
         function createInvaders(stage = currentStage) {
             invaders = [];
-            
-            switch(stage) {
+
+            switch (stage) {
                 case 1:
                     // 3 rows of small invaders
                     for (let row = 0; row < 3; row++) {
@@ -575,37 +853,51 @@
                     break;
                 case 4:
                     // 1 giant boss monster
-                    invaders.push(new Invader(canvas.width/2 - 60, 100, 4));
+                    invaders.push(new Invader(canvas.width / 2 - 60, 100, 4));
                     break;
             }
         }
 
-        // Initialize barriers
-        function createBarriers() {
+        // Initialize barriers based on stage
+        function createBarriers(stage = currentStage) {
             barriers = [];
-            const barrierCount = 4;
+            const barrierCounts = [4, 3, 2, 1]; // Stage 1: 4, Stage 2: 3, Stage 3: 2, Stage 4: 1
+            const barrierCount = barrierCounts[stage - 1];
+
+            if (barrierCount === 0) return;
+
             const barrierSpacing = canvas.width / (barrierCount + 1);
-            
+
             for (let i = 0; i < barrierCount; i++) {
-                const x = barrierSpacing * (i + 1) - 40; // Center the barrier
-                const y = canvas.height - 200; // Position between player and invaders
-                barriers.push(new Barrier(x, y));
+                let x, barrierWidth;
+
+                if (stage === 4) {
+                    // Stage 4 has one big barrier in the center
+                    barrierWidth = 120;
+                    x = canvas.width / 2 - barrierWidth / 2;
+                } else {
+                    barrierWidth = 80;
+                    x = barrierSpacing * (i + 1) - barrierWidth / 2;
+                }
+
+                const y = canvas.height - 200;
+                barriers.push(new Barrier(x, y, stage));
             }
         }
 
         // Handle keyboard input
         document.addEventListener('keydown', (e) => {
             keys[e.code] = true;
-            
+
             if (e.code === 'Space') {
                 e.preventDefault();
                 if (gameRunning) {
-                    bullets.push(new Bullet(player.x + player.width/2, player.y, -7));
+                    bullets.push(new Bullet(player.x + player.width / 2, player.y, -7, '#ffff00', 'normal'));
                     playPlayerShootSound();
                 }
             }
-            
-            if (e.code === 'KeyR') {
+
+            if (e.code === 'Enter') {
                 if (!gameStarted) {
                     startGame();
                 } else if (!isNewRecord) {
@@ -638,16 +930,16 @@
             initAudio();
             const oscillator = audioContext.createOscillator();
             const gainNode = audioContext.createGain();
-            
+
             oscillator.connect(gainNode);
             gainNode.connect(audioContext.destination);
-            
+
             oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
             oscillator.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.1);
-            
+
             gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
             gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
-            
+
             oscillator.start(audioContext.currentTime);
             oscillator.stop(audioContext.currentTime + 0.1);
         }
@@ -656,17 +948,17 @@
             initAudio();
             const oscillator = audioContext.createOscillator();
             const gainNode = audioContext.createGain();
-            
+
             oscillator.connect(gainNode);
             gainNode.connect(audioContext.destination);
-            
+
             // Different frequencies for different stages
             const frequencies = [150, 180, 120, 100];
             oscillator.frequency.setValueAtTime(frequencies[stage - 1], audioContext.currentTime);
-            
+
             gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
             gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.05);
-            
+
             oscillator.start(audioContext.currentTime);
             oscillator.stop(audioContext.currentTime + 0.05);
         }
@@ -675,43 +967,43 @@
             initAudio();
             const oscillator = audioContext.createOscillator();
             const gainNode = audioContext.createGain();
-            
+
             oscillator.connect(gainNode);
             gainNode.connect(audioContext.destination);
-            
+
             // Different hit sounds for different stages
             const frequencies = [400, 350, 300, 250];
             oscillator.frequency.setValueAtTime(frequencies[stage - 1], audioContext.currentTime);
             oscillator.frequency.exponentialRampToValueAtTime(frequencies[stage - 1] * 0.5, audioContext.currentTime + 0.2);
-            
+
             gainNode.gain.setValueAtTime(0.4, audioContext.currentTime);
             gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
-            
+
             oscillator.start(audioContext.currentTime);
             oscillator.stop(audioContext.currentTime + 0.2);
         }
 
         function playInvaderDeathSound(stage) {
             initAudio();
-            
+
             // Create explosion-like sound with multiple oscillators
             for (let i = 0; i < 3; i++) {
                 const oscillator = audioContext.createOscillator();
                 const gainNode = audioContext.createGain();
-                
+
                 oscillator.connect(gainNode);
                 gainNode.connect(audioContext.destination);
-                
+
                 // Different death sounds for different stages
                 const baseFreqs = [600, 500, 400, 300];
                 const freq = baseFreqs[stage - 1] + (i * 100);
-                
+
                 oscillator.frequency.setValueAtTime(freq, audioContext.currentTime);
                 oscillator.frequency.exponentialRampToValueAtTime(freq * 0.1, audioContext.currentTime + 0.3);
-                
+
                 gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
                 gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-                
+
                 oscillator.start(audioContext.currentTime + i * 0.05);
                 oscillator.stop(audioContext.currentTime + 0.3);
             }
@@ -719,23 +1011,23 @@
 
         function startUFOSound() {
             if (ufoSoundInterval) return;
-            
+
             initAudio();
             ufoSoundInterval = setInterval(() => {
                 const oscillator = audioContext.createOscillator();
                 const gainNode = audioContext.createGain();
-                
+
                 oscillator.connect(gainNode);
                 gainNode.connect(audioContext.destination);
-                
+
                 oscillator.frequency.setValueAtTime(220, audioContext.currentTime);
                 oscillator.frequency.setValueAtTime(330, audioContext.currentTime + 0.1);
                 oscillator.frequency.setValueAtTime(220, audioContext.currentTime + 0.2);
-                
+
                 gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
                 gainNode.gain.setValueAtTime(0.15, audioContext.currentTime + 0.2);
                 gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-                
+
                 oscillator.start(audioContext.currentTime);
                 oscillator.stop(audioContext.currentTime + 0.3);
             }, 400);
@@ -750,22 +1042,22 @@
 
         function playUFODestroySound() {
             initAudio();
-            
+
             // Create a satisfying UFO destruction sound
             for (let i = 0; i < 4; i++) {
                 const oscillator = audioContext.createOscillator();
                 const gainNode = audioContext.createGain();
-                
+
                 oscillator.connect(gainNode);
                 gainNode.connect(audioContext.destination);
-                
+
                 const freq = 800 - (i * 150);
                 oscillator.frequency.setValueAtTime(freq, audioContext.currentTime);
                 oscillator.frequency.exponentialRampToValueAtTime(freq * 0.2, audioContext.currentTime + 0.4);
-                
+
                 gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
                 gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
-                
+
                 oscillator.start(audioContext.currentTime + i * 0.1);
                 oscillator.stop(audioContext.currentTime + 0.4);
             }
@@ -773,22 +1065,22 @@
 
         function playStageClearSound() {
             initAudio();
-            
+
             // Happy stage clear melody
             const notes = [523, 659, 784, 1047]; // C5, E5, G5, C6
-            
+
             notes.forEach((freq, index) => {
                 const oscillator = audioContext.createOscillator();
                 const gainNode = audioContext.createGain();
-                
+
                 oscillator.connect(gainNode);
                 gainNode.connect(audioContext.destination);
-                
+
                 oscillator.frequency.setValueAtTime(freq, audioContext.currentTime);
-                
+
                 gainNode.gain.setValueAtTime(0.4, audioContext.currentTime + index * 0.2);
                 gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + index * 0.2 + 0.3);
-                
+
                 oscillator.start(audioContext.currentTime + index * 0.2);
                 oscillator.stop(audioContext.currentTime + index * 0.2 + 0.3);
             });
@@ -796,58 +1088,85 @@
 
         function playGameCompleteSound() {
             initAudio();
-            
+
             // Victory fanfare
             const melody = [
-                {freq: 523, time: 0},    // C5
-                {freq: 659, time: 0.3},  // E5
-                {freq: 784, time: 0.6},  // G5
-                {freq: 1047, time: 0.9}, // C6
-                {freq: 784, time: 1.2},  // G5
-                {freq: 1047, time: 1.5}, // C6
-                {freq: 1319, time: 1.8}, // E6
-                {freq: 1568, time: 2.1}  // G6
+                { freq: 523, time: 0 },    // C5
+                { freq: 659, time: 0.3 },  // E5
+                { freq: 784, time: 0.6 },  // G5
+                { freq: 1047, time: 0.9 }, // C6
+                { freq: 784, time: 1.2 },  // G5
+                { freq: 1047, time: 1.5 }, // C6
+                { freq: 1319, time: 1.8 }, // E6
+                { freq: 1568, time: 2.1 }  // G6
             ];
-            
+
             melody.forEach(note => {
                 const oscillator = audioContext.createOscillator();
                 const gainNode = audioContext.createGain();
-                
+
                 oscillator.connect(gainNode);
                 gainNode.connect(audioContext.destination);
-                
+
                 oscillator.frequency.setValueAtTime(note.freq, audioContext.currentTime);
-                
+
                 gainNode.gain.setValueAtTime(0.5, audioContext.currentTime + note.time);
                 gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + note.time + 0.4);
-                
+
                 oscillator.start(audioContext.currentTime + note.time);
                 oscillator.stop(audioContext.currentTime + note.time + 0.4);
             });
+
+            // Stop all sounds after victory fanfare ends (2.5 seconds)
+            setTimeout(() => {
+                stopAllSounds();
+            }, 2500);
         }
 
         function playGameOverSound() {
             initAudio();
-            
+
             // Sad game over sound - descending notes
             const notes = [523, 466, 415, 349, 294]; // C5 down to D4
-            
+
             notes.forEach((freq, index) => {
                 const oscillator = audioContext.createOscillator();
                 const gainNode = audioContext.createGain();
-                
+
                 oscillator.connect(gainNode);
                 gainNode.connect(audioContext.destination);
-                
+
                 oscillator.frequency.setValueAtTime(freq, audioContext.currentTime);
                 oscillator.frequency.exponentialRampToValueAtTime(freq * 0.8, audioContext.currentTime + 0.5);
-                
+
                 gainNode.gain.setValueAtTime(0.3, audioContext.currentTime + index * 0.3);
                 gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + index * 0.3 + 0.5);
-                
+
                 oscillator.start(audioContext.currentTime + index * 0.3);
                 oscillator.stop(audioContext.currentTime + index * 0.3 + 0.5);
             });
+
+            // Stop all sounds after game over sound ends (1.8 seconds)
+            setTimeout(() => {
+                stopAllSounds();
+            }, 1800);
+        }
+
+        function stopAllSounds() {
+            // Stop UFO sound if playing
+            stopUFOSound();
+
+            // Suspend audio context to stop all sounds
+            if (audioContext && audioContext.state !== 'suspended') {
+                audioContext.suspend();
+            }
+        }
+
+        function resumeAudio() {
+            // Resume audio context when game restarts
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
         }
 
         // Ranking system functions
@@ -858,9 +1177,9 @@
             } else {
                 // Initialize with default rankings
                 rankings = [
-                    {name: "ALIEN", score: 1000},
-                    {name: "INVADER", score: 500},
-                    {name: "UFO", score: 100}
+                    { name: "ALIEN", score: 1000 },
+                    { name: "INVADER", score: 500 },
+                    { name: "UFO", score: 100 }
                 ];
             }
             displayRankings();
@@ -890,23 +1209,23 @@
 
         function submitScore() {
             const playerName = playerNameInput.value.trim() || "ANONYMOUS";
-            const newEntry = {name: playerName.toUpperCase(), score: score};
-            
+            const newEntry = { name: playerName.toUpperCase(), score: score };
+
             // Add new score and sort
             rankings.push(newEntry);
             rankings.sort((a, b) => b.score - a.score);
-            
+
             // Keep only top 3
             rankings = rankings.slice(0, 3);
-            
+
             // Save and display
             saveRankings();
             displayRankings();
-            
+
             // Hide new record input
             newRecordElement.style.display = 'none';
             isNewRecord = false;
-            
+
             // Show appropriate completion message
             if (isGameComplete) {
                 gameCompleteElement.style.display = 'block';
@@ -923,7 +1242,7 @@
             if (keys['ArrowRight'] && player.x < canvas.width - player.width) {
                 player.x += player.speed;
             }
-            
+
             // Update invulnerability timer
             if (invulnerabilityTimer > 0) {
                 invulnerabilityTimer--;
@@ -936,12 +1255,12 @@
             if (invulnerabilityTimer > 0 && Math.floor(invulnerabilityTimer / 5) % 2 === 0) {
                 return; // Skip drawing to create flashing effect
             }
-            
+
             ctx.fillStyle = player.color;
             ctx.fillRect(player.x, player.y, player.width, player.height);
-            
+
             // Draw player cannon
-            ctx.fillRect(player.x + player.width/2 - 3, player.y - 10, 6, 10);
+            ctx.fillRect(player.x + player.width / 2 - 3, player.y - 10, 6, 10);
         }
 
         // Update bullets
@@ -953,7 +1272,7 @@
                     bullets.splice(i, 1);
                 }
             }
-            
+
             // Update invader bullets
             for (let i = invaderBullets.length - 1; i >= 0; i--) {
                 invaderBullets[i].update();
@@ -961,7 +1280,7 @@
                     invaderBullets.splice(i, 1);
                 }
             }
-            
+
             // Update UFO bombs
             for (let i = ufoBombs.length - 1; i >= 0; i--) {
                 ufoBombs[i].update();
@@ -969,12 +1288,20 @@
                     ufoBombs.splice(i, 1);
                 }
             }
+
+            // Update fireballs
+            for (let i = fireballs.length - 1; i >= 0; i--) {
+                fireballs[i].update();
+                if (fireballs[i].isOffScreen()) {
+                    fireballs.splice(i, 1);
+                }
+            }
         }
 
         // Update invaders
         function updateInvaders() {
             let changeDirection = false;
-            
+
             // Check if any invader hits the edge
             for (let invader of invaders) {
                 if (invader.x <= 0 || invader.x >= canvas.width - invader.width) {
@@ -982,7 +1309,7 @@
                     break;
                 }
             }
-            
+
             // Move invaders down and change direction
             if (changeDirection) {
                 for (let invader of invaders) {
@@ -990,7 +1317,7 @@
                     invader.y += 20;
                 }
             }
-            
+
             // Update each invader
             for (let invader of invaders) {
                 invader.update();
@@ -1006,7 +1333,7 @@
                 ufoSpawnTimer = Math.random() * 1500 + 1000; // Reset timer
                 startUFOSound(); // Start UFO sound
             }
-            
+
             // Update existing UFO
             if (ufo) {
                 ufo.update();
@@ -1027,9 +1354,9 @@
                         bullets[i].x + bullets[i].width > invaders[j].x &&
                         bullets[i].y < invaders[j].y + invaders[j].height &&
                         bullets[i].y + bullets[i].height > invaders[j].y) {
-                        
+
                         bullets.splice(i, 1);
-                        
+
                         // Check if invader is destroyed
                         if (invaders[j].takeDamage()) {
                             playInvaderDeathSound(invaders[j].stage);
@@ -1038,13 +1365,13 @@
                         } else {
                             playInvaderHitSound(invaders[j].stage);
                         }
-                        
+
                         updateScoreDisplay();
                         break;
                     }
                 }
             }
-            
+
             // Player bullets vs UFO
             if (ufo) {
                 for (let i = bullets.length - 1; i >= 0; i--) {
@@ -1053,7 +1380,7 @@
                         bullets[i].x + bullets[i].width > ufo.x &&
                         bullets[i].y < ufo.y + ufo.height &&
                         bullets[i].y + bullets[i].height > ufo.y) {
-                        
+
                         bullets.splice(i, 1);
                         ufo = null;
                         stopUFOSound(); // Stop UFO sound when destroyed
@@ -1064,7 +1391,7 @@
                     }
                 }
             }
-            
+
             // Player bullets vs barriers
             for (let i = bullets.length - 1; i >= 0; i--) {
                 if (bullets[i]) {
@@ -1076,7 +1403,7 @@
                     }
                 }
             }
-            
+
             // Invader bullets vs barriers
             for (let i = invaderBullets.length - 1; i >= 0; i--) {
                 if (invaderBullets[i]) {
@@ -1088,15 +1415,15 @@
                     }
                 }
             }
-            
+
             // UFO bombs vs barriers
             for (let i = ufoBombs.length - 1; i >= 0; i--) {
                 if (ufoBombs[i]) {
                     for (let barrier of barriers) {
                         if (barrier.checkCollision(ufoBombs[i].x, ufoBombs[i].y, ufoBombs[i].width, ufoBombs[i].height)) {
                             // UFO bombs destroy more blocks
-                            const centerCol = Math.floor((ufoBombs[i].x + ufoBombs[i].width/2 - barrier.x) / barrier.blockSize);
-                            const centerRow = Math.floor((ufoBombs[i].y + ufoBombs[i].height/2 - barrier.y) / barrier.blockSize);
+                            const centerCol = Math.floor((ufoBombs[i].x + ufoBombs[i].width / 2 - barrier.x) / barrier.blockSize);
+                            const centerRow = Math.floor((ufoBombs[i].y + ufoBombs[i].height / 2 - barrier.y) / barrier.blockSize);
                             barrier.destroyBlocks(centerCol, centerRow, 4); // Larger destruction radius
                             ufoBombs.splice(i, 1);
                             break;
@@ -1104,7 +1431,7 @@
                     }
                 }
             }
-            
+
             // Invader bullets vs player
             for (let i = invaderBullets.length - 1; i >= 0; i--) {
                 if (invulnerabilityTimer <= 0 && // Only check collision if not invulnerable
@@ -1112,13 +1439,13 @@
                     invaderBullets[i].x + invaderBullets[i].width > player.x &&
                     invaderBullets[i].y < player.y + player.height &&
                     invaderBullets[i].y + invaderBullets[i].height > player.y) {
-                    
+
                     invaderBullets.splice(i, 1);
                     playerHit();
                     return;
                 }
             }
-            
+
             // UFO bombs vs player
             for (let i = ufoBombs.length - 1; i >= 0; i--) {
                 if (invulnerabilityTimer <= 0 && // Only check collision if not invulnerable
@@ -1126,13 +1453,43 @@
                     ufoBombs[i].x + ufoBombs[i].width > player.x &&
                     ufoBombs[i].y < player.y + player.height &&
                     ufoBombs[i].y + ufoBombs[i].height > player.y) {
-                    
+
                     ufoBombs.splice(i, 1);
                     playerHit();
                     return;
                 }
             }
-            
+
+            // Fireballs vs player
+            for (let i = fireballs.length - 1; i >= 0; i--) {
+                if (invulnerabilityTimer <= 0 && // Only check collision if not invulnerable
+                    fireballs[i].x < player.x + player.width &&
+                    fireballs[i].x + fireballs[i].width > player.x &&
+                    fireballs[i].y < player.y + player.height &&
+                    fireballs[i].y + fireballs[i].height > player.y) {
+
+                    fireballs.splice(i, 1);
+                    playerHit();
+                    return;
+                }
+            }
+
+            // Fireballs vs barriers
+            for (let i = fireballs.length - 1; i >= 0; i--) {
+                if (fireballs[i]) {
+                    for (let barrier of barriers) {
+                        if (barrier.checkCollision(fireballs[i].x, fireballs[i].y, fireballs[i].width, fireballs[i].height)) {
+                            // Fireballs destroy more blocks than regular bullets
+                            const centerCol = Math.floor((fireballs[i].x + fireballs[i].width / 2 - barrier.x) / barrier.blockSize);
+                            const centerRow = Math.floor((fireballs[i].y + fireballs[i].height / 2 - barrier.y) / barrier.blockSize);
+                            barrier.destroyBlocks(centerCol, centerRow, 3); // Large destruction radius
+                            fireballs.splice(i, 1);
+                            break;
+                        }
+                    }
+                }
+            }
+
             // Check if invaders reached player
             for (let invader of invaders) {
                 if (invader.y + invader.height >= player.y) {
@@ -1152,7 +1509,7 @@
             playerLives--;
             invulnerabilityTimer = 120; // 2 seconds of invulnerability at 60fps
             updateScoreDisplay();
-            
+
             if (playerLives <= 0) {
                 gameOver();
             }
@@ -1162,7 +1519,7 @@
         function gameOver() {
             gameRunning = false;
             playGameOverSound(); // Play sad game over sound
-            
+
             // Check for new record
             if (checkNewRecord(score)) {
                 isNewRecord = true;
@@ -1179,7 +1536,7 @@
             gameRunning = false;
             isGameComplete = true;
             playGameCompleteSound(); // Play victory fanfare
-            
+
             // Check for new record
             if (checkNewRecord(score)) {
                 isNewRecord = true;
@@ -1194,36 +1551,39 @@
         // Start game function
         function startGame() {
             initAudio(); // Initialize audio when game starts
+            resumeAudio(); // Resume audio context
             gameStarted = true;
             gameRunning = true;
             startScreenElement.style.display = 'none';
-            
+
             // Reset to actual game state
             currentStage = 1;
             score = 0;
             playerLives = 3;
             invulnerabilityTimer = 0;
             updateScoreDisplay();
-            
+
             // Reset player position
             player.x = canvas.width / 2 - 25;
             player.y = canvas.height - 60;
-            
+
             // Clear arrays
             bullets = [];
             invaderBullets = [];
             ufoBombs = [];
+            fireballs = [];
             ufo = null;
             stopUFOSound();
             ufoSpawnTimer = Math.random() * 1000 + 500;
-            
+
             // Create actual game invaders and barriers
             createInvaders();
-            createBarriers();
+            createBarriers(currentStage);
         }
 
         // Restart game
         function restartGame() {
+            resumeAudio(); // Resume audio context
             gameRunning = true;
             isGameComplete = false;
             isNewRecord = false;
@@ -1235,22 +1595,23 @@
             gameOverElement.style.display = 'none';
             gameCompleteElement.style.display = 'none';
             newRecordElement.style.display = 'none';
-            
+
             // Reset player position
             player.x = canvas.width / 2 - 25;
             player.y = canvas.height - 60;
-            
+
             // Clear arrays
             bullets = [];
             invaderBullets = [];
             ufoBombs = [];
+            fireballs = [];
             ufo = null;
             stopUFOSound();
             ufoSpawnTimer = Math.random() * 1000 + 500;
-            
+
             // Recreate invaders and barriers
             createInvaders();
-            createBarriers();
+            createBarriers(currentStage);
         }
 
         // Draw everything
@@ -1258,7 +1619,7 @@
             // Clear canvas
             ctx.fillStyle = '#000';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
+
             // Draw stars background
             ctx.fillStyle = '#fff';
             for (let i = 0; i < 50; i++) {
@@ -1266,25 +1627,26 @@
                 let y = (i * 23) % canvas.height;
                 ctx.fillRect(x, y, 1, 1);
             }
-            
+
             if (!gameStarted) {
                 // Draw preview screen
                 drawPreviewScreen();
             } else {
                 // Draw actual game
                 drawPlayer();
-                
+
                 bullets.forEach(bullet => bullet.draw());
                 invaderBullets.forEach(bullet => bullet.draw());
                 ufoBombs.forEach(bomb => bomb.draw());
+                fireballs.forEach(fireball => fireball.draw());
                 invaders.forEach(invader => invader.draw());
                 barriers.forEach(barrier => barrier.draw());
-                
+
                 // Draw UFO if it exists
                 if (ufo) {
                     ufo.draw();
                 }
-                
+
                 // Draw lives indicator
                 ctx.fillStyle = '#00ff00';
                 ctx.font = '16px Courier New';
@@ -1298,8 +1660,8 @@
         function drawPreviewScreen() {
             // Draw preview invaders (static, no movement)
             const previewInvaders = [];
-            
-            switch(previewStage) {
+
+            switch (previewStage) {
                 case 1:
                     for (let row = 0; row < 3; row++) {
                         for (let col = 0; col < 10; col++) {
@@ -1322,38 +1684,51 @@
                     }
                     break;
                 case 4:
-                    previewInvaders.push(new Invader(canvas.width/2 - 60, 150, 4));
+                    previewInvaders.push(new Invader(canvas.width / 2 - 60, 150, 4));
                     break;
             }
-            
+
             // Draw preview invaders
             previewInvaders.forEach(invader => invader.draw());
-            
+
             // Draw preview barriers
             const previewBarriers = [];
-            const barrierCount = 4;
-            const barrierSpacing = canvas.width / (barrierCount + 1);
-            
-            for (let i = 0; i < barrierCount; i++) {
-                const x = barrierSpacing * (i + 1) - 40;
-                const y = canvas.height - 200;
-                previewBarriers.push(new Barrier(x, y));
+            const barrierCounts = [4, 3, 2, 1];
+            const barrierCount = barrierCounts[previewStage - 1];
+
+            if (barrierCount > 0) {
+                const barrierSpacing = canvas.width / (barrierCount + 1);
+
+                for (let i = 0; i < barrierCount; i++) {
+                    let x, barrierWidth;
+
+                    if (previewStage === 4) {
+                        barrierWidth = 120;
+                        x = canvas.width / 2 - barrierWidth / 2;
+                    } else {
+                        barrierWidth = 80;
+                        x = barrierSpacing * (i + 1) - barrierWidth / 2;
+                    }
+
+                    const y = canvas.height - 200;
+                    previewBarriers.push(new Barrier(x, y, previewStage));
+                }
             }
-            
+
             previewBarriers.forEach(barrier => barrier.draw());
-            
+
             // Draw preview player
             ctx.fillStyle = '#00ff00';
             const previewPlayerX = canvas.width / 2 - 25;
             const previewPlayerY = canvas.height - 60;
             ctx.fillRect(previewPlayerX, previewPlayerY, 50, 30);
             ctx.fillRect(previewPlayerX + 22, previewPlayerY - 10, 6, 10);
-            
+
             // Draw stage title
             ctx.fillStyle = '#ffff00';
             ctx.font = '32px Courier New';
             ctx.textAlign = 'center';
-            ctx.fillText(`STAGE ${previewStage} PREVIEW`, canvas.width/2, 50);
+            ctx.fillText(`STAGE ${previewStage} PREVIEW`, canvas.width / 2, 50);
             ctx.textAlign = 'left';
         }
 
@@ -1365,7 +1740,7 @@
                 updateInvaders();
                 updateUFO();
                 checkCollisions();
-                
+
                 // Check win condition
                 if (invaders.length === 0) {
                     if (currentStage < 4) {
@@ -1373,7 +1748,7 @@
                         playStageClearSound(); // Play stage clear sound
                         currentStage++;
                         createInvaders();
-                        createBarriers(); // Reset barriers for new stage
+                        createBarriers(currentStage); // Create barriers for new stage
                         updateScoreDisplay();
                     } else {
                         // Game complete!
@@ -1381,7 +1756,7 @@
                     }
                 }
             }
-            
+
             draw();
             requestAnimationFrame(gameLoop);
         }
@@ -1389,8 +1764,9 @@
         // Initialize and start game
         loadRankings(); // Load rankings on startup
         createInvaders(previewStage); // Create preview invaders
-        createBarriers(); // Create preview barriers
+        createBarriers(previewStage); // Create preview barriers
         gameLoop();
     </script>
 </body>
+
 </html>
