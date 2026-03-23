@@ -20,6 +20,8 @@
 
         #gameContainer {
             text-align: center;
+            position: relative;
+            display: inline-block;
         }
 
         canvas {
@@ -30,13 +32,6 @@
         #score {
             font-size: 24px;
             margin-bottom: 10px;
-        }
-
-        #gameOver {
-            font-size: 32px;
-            color: #ff0000;
-            margin-top: 20px;
-            display: none;
         }
 
         #instructions {
@@ -51,9 +46,47 @@
     <div id="gameContainer">
         <div id="score">Score: 0 | Stage: 1 | Lives: 3</div>
         <canvas id="gameCanvas" width="800" height="600"></canvas>
-        <div id="gameOver">GAME OVER<br><span style="font-size: 20px; color: #ffff00;">[ ENTER ] to Restart</span></div>
-        <div id="gameComplete" style="font-size: 32px; color: #00ff00; margin-top: 20px; display: none;">
-            CONGRATULATIONS!<br>YOU SAVED THE GALAXY!<br><span style="font-size: 20px; color: #ffff00;">[ ENTER ] to Play Again</span>
+        <div id="gameOver" style="
+                display: none;
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                text-align: center;
+                pointer-events: none;
+            ">
+            <div style="font-size: 48px; color: #ff0000; margin-bottom: 20px;">GAME OVER</div>
+            <span style="
+                display: inline-block;
+                font-size: 24px;
+                color: #000;
+                background: #ffff00;
+                padding: 10px 28px;
+                border-radius: 6px;
+                letter-spacing: 2px;
+                animation: blink 1s step-start infinite;
+            ">▶ [ ENTER ] to Restart</span>
+        </div>
+        <div id="gameComplete" style="
+                display: none;
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                text-align: center;
+                pointer-events: none;
+            ">
+            <div style="font-size: 36px; color: #00ff00; margin-bottom: 20px;">CONGRATULATIONS!<br>YOU SAVED THE GALAXY!</div>
+            <span style="
+                display: inline-block;
+                font-size: 24px;
+                color: #000;
+                background: #00ff00;
+                padding: 10px 28px;
+                border-radius: 6px;
+                letter-spacing: 2px;
+                animation: blink 1s step-start infinite;
+            ">▶ [ ENTER ] to Play Again</span>
         </div>
         <div id="newRecord" style="font-size: 24px; color: #ffff00; margin-top: 20px; display: none;">
             NEW HIGH SCORE!<br>
@@ -69,8 +102,16 @@
         <div id="instructions" style="margin-top: 20px; font-size: 14px; color: #888;">
             Use ARROW KEYS to move • SPACEBAR to shoot • ENTER to restart
         </div>
-        <div id="startScreen" style="font-size: 24px; color: #00ff00; margin-top: 20px;">
-            SPACE INVADERS<br><br>
+        <div id="startScreen" style="
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                font-size: 24px;
+                color: #00ff00;
+                text-align: center;
+                pointer-events: none;
+            ">
             <span style="
                 display: inline-block;
                 font-size: 28px;
