@@ -19,10 +19,10 @@ Amazon Q Developer CLI의 도움을 받아 순수 HTML + JavaScript + Canvas API
 
 ```bash
 # 파일을 브라우저로 열기
-open space_invaders.html
+open index.html
 ```
 
-또는 `space_invaders.html` 파일을 더블클릭하여 실행하세요.
+또는 `index.html` 파일을 더블클릭하여 실행하세요.
 
 ---
 
